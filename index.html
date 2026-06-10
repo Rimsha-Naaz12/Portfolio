@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Rimsha Naaz — Space Explorer Portfolio</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#020510;font-family:'Inter',sans-serif;color:#e2e8f0}
+
+/* MAIN CANVAS (stars + sun + axis + planets drawn here) */
+#mainCanvas{position:fixed;inset:0;z-index:1;pointer-events:none}
+
+/* STAGE — planet HTML buttons sit here */
+#stage{position:fixed;inset:0;z-index:2;pointer-events:none}
+.planet-btn{
+  position:absolute;display:flex;flex-direction:column;align-items:center;gap:6px;
+  cursor:pointer;transform:translate(-50%,-50%);transition:transform 0.22s;
+  background:none;border:none;color:inherit;pointer-events:all;
+}
+.planet-btn:hover{transform:translate(-50%,-50%) scale(1.18)}
+.planet-disk{
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:1.55rem;position:relative;
+}
+.planet-ring{
+  position:absolute;border-radius:50%;pointer-events:none;
+  border:1.5px solid rgba(255,255,255,0);
+  transition:border-color 0.2s,box-shadow 0.2s;
+  inset:-8px;
+}
+.planet-btn:hover .planet-ring{border-color:rgba(255,255,255,0.35);box-shadow:0 0 18px rgba(255,255,255,0.15)}
+.planet-label{
+  font-family:'Space Mono',monospace;font-size:0.58rem;letter-spacing:2px;
+  text-transform:uppercase;white-space:nowrap;
+  background:rgba(2,5,16,0.8);padding:2px 9px;border-radius:3px;
+  border:1px solid rgba(255,255,255,0.08);
+}
+
+/* SUN CENTER */
+#sun-center{
+  position:fixed;z-index:3;transform:translate(-50%,-50%);
+  display:flex;flex-direction:column;align-items:center;gap:0;
+  pointer-events:none;text-align:center;
+}
+.sun-orb{
+  width:96px;height:96px;border-radius:50%;
+  background:radial-gradient(circle at 38% 32%, #fffde7 0%, #ffe57f 28%, #ffb300 58%, #e65100 100%);
+  box-shadow:
+    0 0 0 6px rgba(255,180,0,0.12),
+    0 0 24px 8px rgba(255,160,0,0.35),
+    0 0 60px 20px rgba(255,120,0,0.2),
+    0 0 120px 50px rgba(255,80,0,0.08);
+  animation:sunPulse 3s ease-in-out infinite;
+  display:flex;align-items:center;justify-content:center;
+  font-size:2.4rem;
+}
+@keyframes sunPulse{
+  0%,100%{box-shadow:0 0 0 6px rgba(255,180,0,0.12),0 0 24px 8px rgba(255,160,0,0.35),0 0 60px 20px rgba(255,120,0,0.2),0 0 120px 50px rgba(255,80,0,0.08)}
+  50%{box-shadow:0 0 0 10px rgba(255,180,0,0.16),0 0 36px 14px rgba(255,160,0,0.45),0 0 80px 30px rgba(255,120,0,0.25),0 0 160px 70px rgba(255,80,0,0.1)}
+}
+.sun-name{
+  font-family:'Orbitron',monospace;
+  font-size:clamp(1.05rem,2.2vw,1.7rem);
+  font-weight:900;letter-spacing:1px;margin-top:14px;
+  background:linear-gradient(135deg,#fff 20%,#ffe082 55%,#ffd54f 80%,#ffca28);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 12px rgba(255,200,50,0.5));
+}
+.sun-role{font-size:0.72rem;color:rgba(255,220,120,0.7);letter-spacing:1.5px;margin-top:5px;line-height:1.6}
+.sun-hint{
+  font-family:'Space Mono',monospace;font-size:0.52rem;letter-spacing:3px;
+  color:rgba(34,211,238,0.65);text-transform:uppercase;margin-top:10px;
+  animation:hintPulse 2.5s infinite;
+}
+@keyframes hintPulse{0%,100%{opacity:0.25}50%{opacity:1}}
+
+/* PANEL */
+#panel-overlay{
+  position:fixed;inset:0;z-index:50;
+  background:rgba(2,5,16,0.92);
+  display:none;align-items:center;justify-content:center;padding:20px;
+}
+#panel-overlay.open{display:flex}
+#panel-stars{position:absolute;inset:0;pointer-events:none;z-index:0}
+#panel{
+  position:relative;z-index:2;
+  background:rgba(6,10,26,0.0);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:18px;width:100%;max-width:780px;max-height:90vh;
+  overflow:hidden;
+  box-shadow:0 0 60px rgba(34,211,238,0.08),inset 0 0 80px rgba(0,0,0,0.3);
+}
+/* CARD STAR CANVAS INSIDE PANEL */
+#card-stars{position:absolute;inset:0;pointer-events:none;z-index:0;border-radius:18px;}
+#panel-inner{
+  position:relative;z-index:1;
+  padding:40px 44px;max-height:90vh;overflow-y:auto;
+  scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.1) transparent;
+}
+#panel-inner::-webkit-scrollbar{width:4px}
+#panel-inner::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:2px}
+
+#panel-close{
+  position:absolute;top:18px;right:20px;z-index:3;
+  background:rgba(6,10,26,0.7);border:1px solid rgba(255,255,255,0.12);
+  border-radius:50%;width:34px;height:34px;color:#94a3b8;font-size:1.1rem;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;
+}
+#panel-close:hover{background:rgba(255,255,255,0.1);color:#fff}
+@keyframes panelIn{from{opacity:0;transform:scale(0.94) translateY(16px)}to{opacity:1;transform:scale(1) translateY(0)}}
+#panel{animation:panelIn 0.24s ease}
+
+/* PANEL CONTENT */
+.panel-planet-icon{font-size:2.8rem;margin-bottom:14px}
+.panel-tag{font-family:'Space Mono',monospace;font-size:0.63rem;letter-spacing:3px;text-transform:uppercase;margin-bottom:7px}
+.panel-title{font-family:'Orbitron',monospace;font-size:1.55rem;font-weight:900;line-height:1.15;margin-bottom:2px}
+.panel-divider{width:100%;height:1px;background:linear-gradient(to right,transparent,rgba(255,255,255,0.12),transparent);margin:22px 0}
+
+.fact-row{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.fact-item{
+  background:rgba(15,23,42,0.55);border:1px solid rgba(255,255,255,0.07);
+  border-radius:8px;padding:13px 17px;
+  backdrop-filter:blur(4px);
+}
+.fact-k{font-family:'Space Mono',monospace;font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;color:#22d3ee;margin-bottom:4px}
+.fact-v{font-size:0.88rem;color:#cbd5e1}
+.bio-text{font-size:0.9rem;color:#94a3b8;line-height:1.82;margin-bottom:14px}
+.bio-text b{color:#e2e8f0;font-weight:500}
+
+.skill-group{margin-bottom:22px}
+.skill-group-title{font-family:'Orbitron',monospace;font-size:0.7rem;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+.tags{display:flex;flex-wrap:wrap;gap:7px}
+.tag{padding:5px 12px;border-radius:4px;font-family:'Space Mono',monospace;font-size:0.67rem}
+.t-cyan{background:rgba(34,211,238,0.07);color:#22d3ee;border:1px solid rgba(34,211,238,0.2)}
+.t-purple{background:rgba(139,92,246,0.09);color:#a78bfa;border:1px solid rgba(139,92,246,0.22)}
+.t-orange{background:rgba(249,115,22,0.09);color:#fb923c;border:1px solid rgba(249,115,22,0.2)}
+.t-gold{background:rgba(245,158,11,0.09);color:#fbbf24;border:1px solid rgba(245,158,11,0.2)}
+
+.proj-card{
+  background:rgba(15,23,42,0.5);border:1px solid rgba(249,115,22,0.14);
+  border-radius:10px;padding:22px;margin-bottom:14px;
+  text-decoration:none;color:inherit;display:block;transition:border-color 0.2s,transform 0.2s;
+  backdrop-filter:blur(4px);
+}
+.proj-card:hover{border-color:rgba(249,115,22,0.44);transform:translateX(4px)}
+.proj-id{font-family:'Space Mono',monospace;font-size:0.6rem;letter-spacing:2px;text-transform:uppercase;color:#f97316;margin-bottom:7px}
+.proj-name{font-family:'Orbitron',monospace;font-size:0.92rem;font-weight:700;margin-bottom:9px;line-height:1.4}
+.proj-desc{font-size:0.8rem;color:#94a3b8;line-height:1.7;margin-bottom:11px}
+
+.exp-item{
+  background:rgba(15,23,42,0.5);border-left:2px solid #8b5cf6;
+  padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:14px;
+  backdrop-filter:blur(4px);
+}
+.exp-role{font-family:'Orbitron',monospace;font-size:0.86rem;font-weight:700;margin-bottom:3px}
+.exp-org{font-family:'Space Mono',monospace;font-size:0.66rem;color:#a78bfa;letter-spacing:1px;margin-bottom:9px}
+.exp-desc{font-size:0.8rem;color:#94a3b8;line-height:1.7}
+
+.cert-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-top:4px}
+.cert-pod{
+  background:rgba(15,23,42,0.5);border:1px solid rgba(34,211,238,0.11);
+  border-radius:10px;padding:20px;text-align:center;transition:border-color 0.2s,transform 0.2s;
+  backdrop-filter:blur(4px);
+}
+.cert-pod:hover{border-color:#22d3ee;transform:translateY(-3px)}
+.cert-icon{font-size:1.7rem;margin-bottom:8px;display:flex;align-items:center;justify-content:center;min-height:36px}
+.cert-name{font-family:'Space Mono',monospace;font-size:0.68rem;color:#e2e8f0;line-height:1.4}
+
+.contact-link{
+  display:flex;align-items:center;gap:12px;padding:15px 19px;
+  background:rgba(15,23,42,0.5);border:1px solid rgba(34,211,238,0.11);
+  border-radius:8px;text-decoration:none;color:#e2e8f0;margin-bottom:11px;
+  transition:all 0.2s;font-size:0.86rem;backdrop-filter:blur(4px);
+}
+.contact-link:hover{border-color:#22d3ee;transform:translateX(4px);color:#22d3ee}
+.cl-icon{font-size:1.1rem;width:20px;text-align:center}
+.cl-label{font-family:'Space Mono',monospace;font-size:0.63rem;letter-spacing:1px;text-transform:uppercase;color:#475569;margin-left:auto}
+
+.edu-card{
+  background:rgba(15,23,42,0.5);border:1px solid rgba(34,211,238,0.11);
+  border-radius:10px;padding:26px;display:flex;gap:22px;align-items:flex-start;
+  backdrop-filter:blur(4px);
+}
+.edu-badge{width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#22d3ee);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0}
+.edu-degree{font-family:'Orbitron',monospace;font-size:0.98rem;font-weight:700;margin-bottom:5px}
+.edu-uni{font-family:'Space Mono',monospace;font-size:0.68rem;color:#22d3ee;letter-spacing:1px;margin-bottom:4px}
+.edu-year{font-size:0.78rem;color:#64748b}
+
+/* ASTRONAUT */
+#astro{position:fixed;bottom:22px;right:26px;z-index:60;animation:floatY 4s ease-in-out infinite;cursor:default}
+@keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.astro-bubble{
+  position:absolute;bottom:56px;right:0;
+  background:rgba(6,10,26,0.92);border:1px solid rgba(34,211,238,0.28);
+  border-radius:10px 10px 0 10px;padding:9px 13px;
+  font-family:'Space Mono',monospace;font-size:0.63rem;color:#22d3ee;
+  white-space:nowrap;opacity:0;transition:opacity 0.3s;
+}
+#astro:hover .astro-bubble{opacity:1}
+.astro-em{font-size:2.1rem;filter:drop-shadow(0 0 8px rgba(34,211,238,0.4))}
+
+/* ── TOP NAV ── */
+#topnav{
+  position:fixed;top:0;left:0;right:0;z-index:90;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;height:52px;
+  background:rgba(2,5,16,0.82);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-bottom:1px solid rgba(255,255,255,0.08);
+  gap:8px;
+}
+.nav-logo{
+  font-family:'Orbitron',monospace;font-size:0.8rem;font-weight:900;
+  letter-spacing:2px;color:#22d3ee;text-transform:uppercase;
+  text-shadow:0 0 14px rgba(34,211,238,0.5);
+  cursor:pointer;user-select:none;white-space:nowrap;flex-shrink:0;
+}
+.nav-links{
+  display:flex;align-items:center;gap:1px;list-style:none;flex-shrink:1;
+}
+.nav-links li button{
+  background:none;border:none;cursor:pointer;
+  font-family:'Space Mono',monospace;font-size:0.57rem;
+  letter-spacing:0.8px;text-transform:uppercase;
+  color:rgba(148,163,184,0.85);
+  padding:6px 9px;border-radius:5px;
+  transition:color 0.2s,background 0.2s,box-shadow 0.2s;
+  display:flex;align-items:center;gap:5px;white-space:nowrap;
+}
+.nav-links li button:hover{color:#fff;background:rgba(255,255,255,0.08);}
+.nav-links li button.active{
+  color:#22d3ee;background:rgba(34,211,238,0.1);
+  box-shadow:0 0 12px rgba(34,211,238,0.2);
+}
+.nav-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+@media(max-width:900px){
+  .nav-logo{font-size:0.7rem;letter-spacing:1px;}
+  .nav-links li button{font-size:0.52rem;padding:5px 7px;}
+}
+@media(max-width:680px){
+  #topnav{padding:0 10px;}
+  .nav-logo{font-size:0.62rem;letter-spacing:0px;}
+  .nav-links li button{font-size:0.46rem;padding:4px 5px;letter-spacing:0;gap:3px;}
+  .nav-dot{display:none;}
+}
+</style>
+</head>
+<body>
+
+<!-- TOP NAVIGATION -->
+<nav id="topnav">
+  <div class="nav-logo" onclick="closePanel(null,true)">RN.SPACE</div>
+  <ul class="nav-links">
+    <li><button onclick="navOpen('about')"    id="nav-about">   <span class="nav-dot" style="background:#60a5fa"></span>About</button></li>
+    <li><button onclick="navOpen('skills')"   id="nav-skills">  <span class="nav-dot" style="background:#a78bfa"></span>Skills</button></li>
+    <li><button onclick="navOpen('projects')" id="nav-projects"><span class="nav-dot" style="background:#fb923c"></span>Projects</button></li>
+    <li><button onclick="navOpen('experience')" id="nav-experience"><span class="nav-dot" style="background:#fcd34d"></span>Experience</button></li>
+    <li><button onclick="navOpen('education')" id="nav-education"><span class="nav-dot" style="background:#34d399"></span>Education</button></li>
+    <li><button onclick="navOpen('certs')"    id="nav-certs">   <span class="nav-dot" style="background:#94a3b8"></span>Certs</button></li>
+    <li><button onclick="navOpen('contact')"  id="nav-contact"> <span class="nav-dot" style="background:#22d3ee"></span>Contact</button></li>
+  </ul>
+</nav>
+
+<!-- MAIN CANVAS: stars, nebula, sun glow, axis lines -->
+<canvas id="mainCanvas"></canvas>
+
+<!-- STAGE: planet buttons -->
+<div id="stage">
+  <button class="planet-btn" id="p-about"    onclick="openPanel('about')">
+    <div class="planet-disk" style="width:60px;height:60px;background:radial-gradient(circle at 36% 34%,#90caf9,#1565c0 60%,#0d47a1);box-shadow:0 0 24px rgba(59,130,246,0.55)">🌎<div class="planet-ring"></div></div>
+    <span class="planet-label" style="color:#60a5fa">About Me</span>
+  </button>
+  <button class="planet-btn" id="p-skills"   onclick="openPanel('skills')">
+    <div class="planet-disk" style="width:52px;height:52px;background:radial-gradient(circle at 36% 34%,#ce93d8,#7b1fa2 60%,#4a148c);box-shadow:0 0 22px rgba(139,92,246,0.55)">🔮<div class="planet-ring"></div></div>
+    <span class="planet-label" style="color:#a78bfa">Skills</span>
+  </button>
+  <button class="planet-btn" id="p-projects" onclick="openPanel('projects')">
+    <div class="planet-disk" style="width:68px;height:68px;background:radial-gradient(circle at 36% 34%,#ffcc80,#e64a19 55%,#bf360c);box-shadow:0 0 28px rgba(249,115,22,0.55)">🔴<div class="planet-ring"></div></div>
+    <span class="planet-label" style="color:#fb923c">Projects</span>
+  </button>
+  <button class="planet-btn" id="p-experience" onclick="openPanel('experience')">
+    <div class="planet-disk" style="width:76px;height:76px;background:radial-gradient(circle at 36% 34%,#ffe082,#f57f17 55%,#e65100);box-shadow:0 0 30px rgba(245,158,11,0.5)">🪐<div class="planet-ring"></div></div>
+    <span class="planet-label" style="color:#fcd34d">Experience</span>
+  </button>
+  <button class="planet-btn" id="p-education" onclick="openPanel('education')">
+    <div class="planet-disk" style="width:48px;height:48px;background:radial-gradient(circle at 36% 34%,#a5d6a7,#2e7d32 60%,#1b5e20);box-shadow:0 0 20px rgba(52,211,153,0.5)">🎓<div class="planet-ring"></div></div>
+    <span class="planet-label" style="color:#34d399">Education</span>
+  </button>
+  <button class="planet-btn" id="p-certs"    onclick="openPanel('certs')">
+    <div class="planet-disk" style="width:48px;height:48px;background:radial-gradient(circle at 36% 34%,#e0e0e0,#546e7a 60%,#263238);box-shadow:0 0 20px rgba(148,163,184,0.4)">🌙<div class="planet-ring"></div></div>
+    <span class="planet-label" style="color:#94a3b8">Certs</span>
+  </button>
+  <button class="planet-btn" id="p-contact"  onclick="openPanel('contact')">
+    <div class="planet-disk" style="width:54px;height:54px;background:radial-gradient(circle at 36% 34%,#80deea,#00838f 60%,#006064);box-shadow:0 0 22px rgba(34,211,238,0.55)">📡<div class="planet-ring"></div></div>
+    <span class="planet-label" style="color:#22d3ee">Contact</span>
+  </button>
+</div>
+
+<!-- SUN CENTER (name card) -->
+<div id="sun-center">
+  <div class="sun-orb">☀️</div>
+  <div class="sun-name">Rimsha Naaz</div>
+  <div class="sun-role">AI / ML · Full Stack Developer<br>Warangal, India · CSE 2027</div>
+  <div class="sun-hint">↑ click a planet to explore ↑</div>
+</div>
+
+<!-- ASTRONAUT -->
+<div id="astro">
+  <div class="astro-bubble" id="astro-msg">Click a planet, Commander!</div>
+  <div class="astro-em">👩‍🚀</div>
+</div>
+
+<!-- PANEL OVERLAY -->
+<div id="panel-overlay" onclick="closePanel(event)">
+  <canvas id="panel-stars"></canvas>
+  <div id="panel">
+    <canvas id="card-stars"></canvas>
+    <button id="panel-close" onclick="closePanel(null,true)">✕</button>
+    <div id="panel-inner">
+      <div id="panel-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TEMPLATES -->
+<template id="tpl-about">
+  <div class="panel-planet-icon">🌎</div>
+  <div class="panel-tag" style="color:#60a5fa">Earth — Origin Planet</div>
+  <div class="panel-title">About Me</div>
+  <div class="panel-divider"></div>
+  <p class="bio-text">I'm <b>Rimsha Naaz</b>, a Computer Science Engineering student at SR University, Warangal with a strong focus on <b>Machine Learning, Deep Learning, and Full-Stack Web Development</b>.</p>
+  <p class="bio-text">My mission is to engineer intelligent systems that solve real-world problems — from adaptive solar radiation forecasting with hybrid DRL–ANN models to predicting student dropout using ML.</p>
+  <div class="fact-row">
+    <div class="fact-item"><div class="fact-k">Location</div><div class="fact-v">Warangal, Telangana, India 🇮🇳</div></div>
+    <div class="fact-item"><div class="fact-k">Current Mission</div><div class="fact-v">B.Tech Computer Science Engineering</div></div>
+    <div class="fact-item"><div class="fact-k">Expected Graduation</div><div class="fact-v">2027</div></div>
+    <div class="fact-item"><div class="fact-k">Languages</div><div class="fact-v">English · Hindi · Telugu</div></div>
+    <div class="fact-item"><div class="fact-k">Strengths</div><div class="fact-v">Quick Learner · Analytical Thinking · Effective Communication</div></div>
+  </div>
+</template>
+
+<template id="tpl-skills">
+  <div class="panel-planet-icon">🔮</div>
+  <div class="panel-tag" style="color:#a78bfa">Mercury — Skill Satellites</div>
+  <div class="panel-title">Skills</div>
+  <div class="panel-divider"></div>
+  <div class="skill-group"><div class="skill-group-title" style="color:#a78bfa">Programming Languages</div><div class="tags"><span class="tag t-purple">Python</span><span class="tag t-purple">Java</span><span class="tag t-purple">JavaScript</span></div></div>
+  <div class="skill-group"><div class="skill-group-title" style="color:#22d3ee">Web Technologies</div><div class="tags"><span class="tag t-cyan">HTML</span><span class="tag t-cyan">CSS</span><span class="tag t-cyan">JavaScript</span></div></div>
+  <div class="skill-group"><div class="skill-group-title" style="color:#fbbf24">Machine Learning & AI</div><div class="tags"><span class="tag t-gold">ANN</span><span class="tag t-gold">Deep Reinforcement Learning</span><span class="tag t-gold">Data Preprocessing</span><span class="tag t-gold">Model Training</span></div></div>
+  <div class="skill-group"><div class="skill-group-title" style="color:#22d3ee">Data & Libraries</div><div class="tags"><span class="tag t-cyan">NumPy</span><span class="tag t-cyan">Pandas</span><span class="tag t-cyan">Matplotlib</span><span class="tag t-cyan">SQL</span></div></div>
+  <div class="skill-group"><div class="skill-group-title" style="color:#fb923c">Developer Skills</div><div class="tags"><span class="tag t-orange">DSA</span><span class="tag t-orange">Computer Vision</span><span class="tag t-orange">UAV Systems</span></div></div>
+  <div class="skill-group"><div class="skill-group-title" style="color:#a78bfa">Soft Skills</div><div class="tags"><span class="tag t-purple">Communication</span><span class="tag t-purple">Analytical Thinking</span><span class="tag t-purple">Team Collaboration</span><span class="tag t-purple">Adaptability</span></div></div>
+</template>
+
+<template id="tpl-projects">
+  <div class="panel-planet-icon">🔴</div>
+  <div class="panel-tag" style="color:#f97316">Mars — Research Station</div>
+  <div class="panel-title">Projects</div>
+  <div class="panel-divider"></div>
+  <a href="https://colab.research.google.com/drive/1Gskl6aJDWQlE5ePck7ukGWfe9XI4JkE4" target="_blank" class="proj-card">
+    <div class="proj-id">Module Alpha · ML Research</div>
+    <div class="proj-name">Deep RL–Driven ANN for Solar Radiation Forecasting</div>
+    <div class="proj-desc">Hybrid DRL–ANN model to improve solar radiation prediction accuracy, supporting data-driven renewable energy planning.</div>
+    <div class="tags"><span class="tag t-gold">Python</span><span class="tag t-gold">ANN</span><span class="tag t-gold">DRL</span><span class="tag t-cyan">NumPy</span><span class="tag t-cyan">Pandas</span></div>
+    <div style="margin-top:10px;font-family:'Space Mono',monospace;font-size:0.66rem;color:#f97316">Open in Colab →</div>
+  </a>
+  <a href="https://colab.research.google.com/drive/1c7e0LZt6wYnNyv0jD0RKBgSZiNTxwhag" target="_blank" class="proj-card">
+    <div class="proj-id">Module Beta · Predictive ML</div>
+    <div class="proj-name">Predict Student Dropout & Academic Success</div>
+    <div class="proj-desc">ML model to identify at-risk students, enabling early institutional intervention to improve retention outcomes.</div>
+    <div class="tags"><span class="tag t-gold">Python</span><span class="tag t-gold">Machine Learning</span><span class="tag t-cyan">Pandas</span><span class="tag t-cyan">Matplotlib</span></div>
+    <div style="margin-top:10px;font-family:'Space Mono',monospace;font-size:0.66rem;color:#f97316">Open in Colab →</div>
+  </a>
+  <div class="proj-card" style="cursor:default">
+    <div class="proj-id">Module Gamma · Computer Vision</div>
+    <div class="proj-name">UAV Search & Rescue — Real-Time Victim Detection</div>
+    <div class="proj-desc">UAV-assisted system for real-time victim detection using image processing in disaster-response simulations.</div>
+    <div class="tags"><span class="tag t-gold">Python</span><span class="tag t-orange">Computer Vision</span><span class="tag t-orange">UAV Simulation</span></div>
+  </div>
+  <div class="proj-card" style="cursor:default">
+    <div class="proj-id">Module Delta · Web Dev</div>
+    <div class="proj-name">FoodFinder — Warangal Restaurant Discovery</div>
+    <div class="proj-desc">Responsive food delivery web app with dynamic UI and structured data handling for local restaurant discovery.</div>
+    <div class="tags"><span class="tag t-purple">HTML</span><span class="tag t-purple">CSS</span><span class="tag t-cyan">JavaScript</span></div>
+  </div>
+</template>
+
+<template id="tpl-experience">
+  <div class="panel-planet-icon">🪐</div>
+  <div class="panel-tag" style="color:#fcd34d">Jupiter — Mission Log</div>
+  <div class="panel-title">Experience</div>
+  <div class="panel-divider"></div>
+  <div class="exp-item">
+    <div class="exp-role">Virtual Internship — Java Programming</div>
+    <div class="exp-org">CODSOFT · Remote</div>
+    <div class="exp-desc">Java programming, OOP design, and structured software solution development in real-world scenarios.</div>
+  </div>
+  <div class="exp-item">
+    <div class="exp-role">AI–ML Virtual Internship</div>
+    <div class="exp-org">Virtual Program · Remote</div>
+    <div class="exp-desc">Data preprocessing, model training and evaluation. Applied supervised learning to classification and regression tasks.</div>
+  </div>
+  <div class="exp-item">
+    <div class="exp-role">Prompt Engineering for AI</div>
+    <div class="exp-org">Virtual Program · Remote</div>
+    <div class="exp-desc">Techniques to optimise LLM interactions, craft effective prompts, and build AI-augmented workflows.</div>
+  </div>
+</template>
+
+<template id="tpl-education">
+  <div class="panel-planet-icon">🎓</div>
+  <div class="panel-tag" style="color:#34d399">Academy Records</div>
+  <div class="panel-title">Education</div>
+  <div class="panel-divider"></div>
+  <div class="edu-card">
+    <div class="edu-badge">🛰</div>
+    <div>
+      <div class="edu-degree">B.Tech — Computer Science Engineering</div>
+      <div class="edu-uni">SR University · Warangal, Telangana, India</div>
+      <div class="edu-year">Expected Graduation: 2027</div>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-certs">
+  <div class="panel-planet-icon">🌙</div>
+  <div class="panel-tag" style="color:#94a3b8">Moon — Lunar Base</div>
+  <div class="panel-title">Certifications</div>
+  <div class="panel-divider"></div>
+  <div class="cert-grid">
+    <div class="cert-pod"><div class="cert-icon">🐍</div><div class="cert-name">Python Programming</div></div>
+    <div class="cert-pod">
+      <div class="cert-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="36" height="36">
+          <path fill="#F44336" d="M23.65 24.898c-.998-.009-2.014.143-2.977.44C19.246 25.96 16.705 27.3 16 28.5c2.168-1.078 5.857-2.137 8.59-1.428 1.317.343 1.498 1.05.94 1.75-.557.702-1.58 1.215-2.45 1.572-.48.198-.978.375-1.486.526C20.354 31.25 18.4 31.7 18 33.5c-.346 1.573.875 2.88 2.23 3.435.94.38 2.012.504 3.015.504 1.12 0 2.16-.14 2.916-.384.89-.283 1.64-.737 2.04-1.406.408-.68.506-1.575.105-2.285-.345-.617-1.094-1.03-1.878-1.18-.67-.126-1.38-.072-2.026.132-.51.163-.975.44-1.336.826-.255.274-.392.58-.37.877 0 0-.29-.217-.33-.62-.07-.7.408-1.452 1.23-1.86.87-.432 1.96-.516 2.885-.278.98.25 1.838.886 2.228 1.77.384.877.267 1.96-.297 2.77-.564.81-1.46 1.36-2.432 1.64-.89.256-1.87.338-2.836.24-1.046-.105-2.13-.42-2.98-1.06-.84-.635-1.39-1.617-1.274-2.658.114-1.01.79-1.873 1.6-2.47.8-.587 1.764-.935 2.734-1.143a9.89 9.89 0 0 1 2.167-.198c.72.01 1.44.1 2.13.287 1.43.38 2.704 1.185 3.36 2.42.65 1.23.6 2.77-.18 3.92-.776 1.146-2.09 1.822-3.43 2.108-1.34.285-2.76.21-4.05-.15-1.29-.36-2.48-1.05-3.27-2.08-.796-1.035-.988-2.42-.555-3.605.436-1.187 1.468-2.05 2.576-2.65 1.106-.6 2.317-.952 3.522-1.247 1.204-.294 2.427-.543 3.54-1.038 1.113-.494 2.16-1.283 2.528-2.424.376-1.154-.04-2.47-.93-3.27-.88-.8-2.1-1.1-3.3-1.11z"/>
+          <path fill="#1565C0" d="M20.43 16.27c1.256-.13 2.535.028 3.722.45 1.185.42 2.24 1.12 2.98 2.05.37.468.657.99.84 1.538.18.55.257 1.122.24 1.694-.037 1.144-.445 2.253-1.084 3.177-.643.93-1.51 1.69-2.46 2.29-1.9 1.2-4.1 1.74-6.27 1.79 2.35-.58 4.8-1.69 6.3-3.6.75-.955 1.22-2.11 1.14-3.29-.087-1.183-.75-2.27-1.65-3.05-.9-.78-2.04-1.22-3.19-1.35-.575-.065-1.16-.05-1.72.043-.564.093-1.11.27-1.62.516-.51.244-.98.557-1.38.933-.405.376-.74.82-.977 1.308-.235.488-.36 1.016-.363 1.548-.003.53.115 1.063.348 1.546.23.482.574.91.992 1.247.42.338.91.58 1.42.716.255.067.514.107.775.12.26.013.524-.002.78-.047-.504.184-1.05.28-1.6.272-.55-.008-1.1-.12-1.61-.33-.51-.208-.978-.52-1.37-.9-.394-.38-.71-.836-.934-1.334-.222-.498-.35-1.04-.375-1.588-.023-.547.058-1.1.24-1.62.182-.52.46-1.003.816-1.42.356-.418.787-.768 1.26-1.035.472-.266.99-.448 1.52-.536.527-.088 1.066-.083 1.59-.018z"/>
+          <path fill="#1565C0" d="M17.5 37.5s-.5.3-1.5.3c-1.3 0-2-.5-2-.5s.4 1 2 1c1.2 0 1.5-.8 1.5-.8zM30.5 37s-.3.5-1.5.7c-1.2.2-2.5-.2-2.5-.2s.5 1 2.5.8c1.7-.2 1.5-1.3 1.5-1.3z"/>
+        </svg>
+      </div>
+      <div class="cert-name">Java Programming</div>
+    </div>
+    <div class="cert-pod"><div class="cert-icon">🗄️</div><div class="cert-name">SQL</div></div>
+    <div class="cert-pod"><div class="cert-icon">🌐</div><div class="cert-name">HTML & Web Dev</div></div>
+  </div>
+</template>
+
+<template id="tpl-contact">
+  <div class="panel-planet-icon">📡</div>
+  <div class="panel-tag" style="color:#22d3ee">Open Transmission</div>
+  <div class="panel-title">Contact</div>
+  <div class="panel-divider"></div>
+  <p class="bio-text" style="margin-bottom:22px">Looking for internships, research collaborations, and exciting projects in AI/ML and Full-Stack. Send a signal — I respond fast.</p>
+  <a href="mailto:rimshan344@gmail.com" class="contact-link"><span class="cl-icon">✉️</span> rimshan344@gmail.com <span class="cl-label">Email</span></a>
+  <a href="tel:+917671930639" class="contact-link"><span class="cl-icon">📞</span> +91 7671930639 <span class="cl-label">Phone</span></a>
+  <a href="https://www.linkedin.com/in/rimsha-naaz-042b77287/" target="_blank" class="contact-link"><span class="cl-icon">💼</span> rimsha-naaz-042b77287 <span class="cl-label">LinkedIn</span></a>
+  <a href="https://github.com/Rimsha-Naaz12" target="_blank" class="contact-link"><span class="cl-icon">🐙</span> Rimsha-Naaz12 <span class="cl-label">GitHub</span></a>
+</template>
+
+<script>
+const mc = document.getElementById('mainCanvas');
+const mctx = mc.getContext('2d');
+let W, H, stars=[], comets=[], rockets=[], planetPositions=[], orbitR=0, CX=0, CY=0, tick=0;
+
+const PLANET_IDS = ['p-about','p-skills','p-projects','p-experience','p-education','p-certs','p-contact'];
+// Pre-defined rgba strings — no hex conversion needed
+const PLANET_RGBA = [
+  'rgba(96,165,250,',   // blue
+  'rgba(167,139,250,',  // purple
+  'rgba(251,146,60,',   // orange
+  'rgba(252,211,77,',   // gold
+  'rgba(52,211,153,',   // green
+  'rgba(148,163,184,',  // grey
+  'rgba(34,211,238,'    // cyan
+];
+
+function resize(){
+  W = mc.width = window.innerWidth;
+  H = mc.height = window.innerHeight;
+  const NAV_H = 58;
+  CX = W/2; CY = NAV_H + (H - NAV_H)/2;  // center of area below nav
+  orbitR = Math.min(Math.min(W,H)*0.40, 340);
+  calcPlanetPositions();
+  positionElements();
+}
+
+function calcPlanetPositions(){
+  planetPositions = PLANET_IDS.map((id,i)=>{
+    const a = (-90 + (360/PLANET_IDS.length)*i) * Math.PI/180;
+    return { x: CX + orbitR*Math.cos(a), y: CY + orbitR*Math.sin(a) };
+  });
+}
+
+function positionElements(){
+  PLANET_IDS.forEach((id,i)=>{
+    const el = document.getElementById(id);
+    if(el){ el.style.left=planetPositions[i].x+'px'; el.style.top=planetPositions[i].y+'px'; }
+  });
+  const sc = document.getElementById('sun-center');
+  if(sc){ sc.style.left=CX+'px'; sc.style.top=CY+'px'; }
+}
+
+function initStars(){
+  stars=[];
+  for(let i=0;i<320;i++){
+    stars.push({
+      x:Math.random()*W, y:Math.random()*H,
+      r:Math.random()*1.6+0.2,
+      a:Math.random(), da:(Math.random()-0.5)*0.007,
+      vy:Math.random()*0.06+0.015,
+      bright: Math.random() > 0.85 // extra bright stars
+    });
+  }
+}
+
+function spawnComet(){
+  if(comets.length<3 && Math.random()<0.004)
+    comets.push({x:Math.random()*W*0.7,y:0,vx:2+Math.random()*3,vy:1.5+Math.random()*2.5,life:1});
+}
+
+// ── ROCKETS ──
+function spawnRocket(){
+  if(rockets.length < 4 && Math.random() < 0.008){
+    const side = Math.floor(Math.random()*4);
+    let x,y,vx,vy,angle;
+    if(side===0){x=Math.random()*W;y=H+20;vx=(Math.random()-0.5)*0.8;vy=-(1.2+Math.random()*1.5);angle=-Math.PI/2;}
+    else if(side===1){x=-20;y=Math.random()*H;vx=(1+Math.random()*1.2);vy=(Math.random()-0.5)*0.8;angle=0;}
+    else if(side===2){x=W+20;y=Math.random()*H;vx=-(1+Math.random()*1.2);vy=(Math.random()-0.5)*0.8;angle=Math.PI;}
+    else{x=Math.random()*W;y=-20;vx=(Math.random()-0.5)*0.8;vy=(1+Math.random()*1.5);angle=Math.PI/2;}
+    const type = Math.random()<0.5?'rocket':'ship';
+    rockets.push({x,y,vx,vy,angle:Math.atan2(vy,vx)+Math.PI/2,type,trail:[]});
+  }
+}
+
+function drawRocket(x,y,angle,type){
+  mctx.save();
+  mctx.translate(x,y);
+  mctx.rotate(angle);
+  if(type==='rocket'){
+    // Body
+    mctx.fillStyle='#e0e0e0';
+    mctx.beginPath();mctx.roundRect(-5,-18,10,28,3);mctx.fill();
+    // Nose
+    mctx.fillStyle='#ef5350';
+    mctx.beginPath();mctx.moveTo(0,-26);mctx.lineTo(-5,-18);mctx.lineTo(5,-18);mctx.closePath();mctx.fill();
+    // Fins
+    mctx.fillStyle='#42a5f5';
+    mctx.beginPath();mctx.moveTo(-5,8);mctx.lineTo(-12,18);mctx.lineTo(-5,12);mctx.closePath();mctx.fill();
+    mctx.beginPath();mctx.moveTo(5,8);mctx.lineTo(12,18);mctx.lineTo(5,12);mctx.closePath();mctx.fill();
+    // Window
+    mctx.fillStyle='rgba(100,200,255,0.8)';
+    mctx.beginPath();mctx.arc(0,-6,4,0,Math.PI*2);mctx.fill();
+    mctx.strokeStyle='rgba(255,255,255,0.4)';mctx.lineWidth=0.7;mctx.stroke();
+    // Flame
+    const fl=mctx.createLinearGradient(0,10,0,28);
+    fl.addColorStop(0,'rgba(255,200,50,0.9)');fl.addColorStop(0.5,'rgba(255,80,0,0.7)');fl.addColorStop(1,'rgba(255,50,0,0)');
+    mctx.fillStyle=fl;
+    mctx.beginPath();mctx.moveTo(-4,10);mctx.quadraticCurveTo(0,24+Math.random()*6,4,10);mctx.closePath();mctx.fill();
+  } else {
+    // Spaceship — saucer style
+    mctx.fillStyle='#78909c';
+    mctx.beginPath();mctx.ellipse(0,0,22,8,0,0,Math.PI*2);mctx.fill();
+    mctx.fillStyle='#b0bec5';
+    mctx.beginPath();mctx.ellipse(0,-4,12,6,0,0,Math.PI*2);mctx.fill();
+    // Dome
+    mctx.fillStyle='rgba(100,220,255,0.7)';
+    mctx.beginPath();mctx.ellipse(0,-6,7,5,0,Math.PI,Math.PI*2);mctx.fill();
+    // Lights
+    [-14,-7,0,7,14].forEach((lx,li)=>{
+      mctx.fillStyle=li%2===0?'rgba(255,200,0,0.9)':'rgba(0,200,255,0.9)';
+      mctx.beginPath();mctx.arc(lx,4,1.8,0,Math.PI*2);mctx.fill();
+    });
+    // Engine glow
+    const eg=mctx.createRadialGradient(0,8,0,0,8,10);
+    eg.addColorStop(0,'rgba(50,150,255,0.6)');eg.addColorStop(1,'rgba(0,50,200,0)');
+    mctx.fillStyle=eg;mctx.beginPath();mctx.ellipse(0,8,10,5,0,0,Math.PI*2);mctx.fill();
+  }
+  mctx.restore();
+}
+
+function drawMain(){
+  tick++;
+  mctx.clearRect(0,0,W,H);
+
+  // Deep space bg
+  const bgG=mctx.createRadialGradient(CX,CY,0,CX,CY,Math.max(W,H)*0.8);
+  bgG.addColorStop(0,'rgba(10,16,36,1)');
+  bgG.addColorStop(0.5,'rgba(5,9,22,1)');
+  bgG.addColorStop(1,'rgba(2,4,12,1)');
+  mctx.fillStyle=bgG; mctx.fillRect(0,0,W,H);
+
+  // Nebula blobs
+  [
+    [CX*1.45,CY*0.5,'rgba(109,40,217,0.06)',W*0.46],
+    [CX*0.4, CY*1.5,'rgba(34,211,238,0.045)',W*0.4],
+    [CX*1.65,CY*1.65,'rgba(249,115,22,0.03)',W*0.32],
+    [CX*0.25,CY*0.38,'rgba(52,211,153,0.025)',W*0.3],
+  ].forEach(([nx,ny,nc,nr])=>{
+    const g=mctx.createRadialGradient(nx,ny,0,nx,ny,nr);
+    g.addColorStop(0,nc);g.addColorStop(1,'rgba(0,0,0,0)');
+    mctx.fillStyle=g;mctx.fillRect(0,0,W,H);
+  });
+
+  // Sun canvas glow
+  const sg=mctx.createRadialGradient(CX,CY,0,CX,CY,orbitR*0.65);
+  sg.addColorStop(0,'rgba(255,200,50,0.10)');
+  sg.addColorStop(0.4,'rgba(255,140,0,0.04)');
+  sg.addColorStop(1,'rgba(0,0,0,0)');
+  mctx.fillStyle=sg; mctx.fillRect(0,0,W,H);
+
+  // Orbit ring
+  mctx.beginPath();
+  mctx.arc(CX,CY,orbitR,0,Math.PI*2);
+  mctx.strokeStyle='rgba(255,255,255,0.07)';
+  mctx.lineWidth=1; mctx.stroke();
+
+  // ── POLYGON connecting all planets ──
+  mctx.beginPath();
+  planetPositions.forEach((p,i)=>{ i===0?mctx.moveTo(p.x,p.y):mctx.lineTo(p.x,p.y); });
+  mctx.closePath();
+  mctx.strokeStyle='rgba(180,180,255,0.08)'; mctx.lineWidth=0.7; mctx.stroke();
+
+  // ── AXIS LINES: sun to each planet ──
+  const planetRGB=[[96,165,250],[167,139,250],[251,146,60],[252,211,77],[52,211,153],[148,163,184],[34,211,238]];
+  planetPositions.forEach((p,i)=>{
+    const [r,g2,b]=planetRGB[i];
+    const grad=mctx.createLinearGradient(CX,CY,p.x,p.y);
+    grad.addColorStop(0,  'rgba(255,210,80,0.0)');
+    grad.addColorStop(0.12,'rgba(255,210,80,0.30)');
+    grad.addColorStop(0.78,'rgba('+r+','+g2+','+b+',0.35)');
+    grad.addColorStop(1,  'rgba('+r+','+g2+','+b+',0.0)');
+    mctx.beginPath(); mctx.moveTo(CX,CY); mctx.lineTo(p.x,p.y);
+    mctx.strokeStyle=grad; mctx.lineWidth=1.2;
+    mctx.setLineDash([5,8]); mctx.stroke(); mctx.setLineDash([]);
+    // Pulsing midpoint dot
+    const mx=(CX+p.x)/2, my=(CY+p.y)/2;
+    const pulse=0.5+0.5*Math.sin(tick*0.04+i*0.9);
+    mctx.beginPath(); mctx.arc(mx,my,2.2,0,Math.PI*2);
+    mctx.fillStyle='rgba('+r+','+g2+','+b+','+(0.25+0.55*pulse)+')'; mctx.fill();
+    // Glow ring at planet end
+    mctx.beginPath(); mctx.arc(p.x,p.y,5,0,Math.PI*2);
+    mctx.strokeStyle='rgba('+r+','+g2+','+b+',0.55)'; mctx.lineWidth=1.5; mctx.stroke();
+  });
+
+  // ── STARS ──
+  stars.forEach(s=>{
+    s.a+=s.da; if(s.a<=0||s.a>=1)s.da*=-1;
+    s.y+=s.vy; if(s.y>H){s.y=0;s.x=Math.random()*W;}
+    mctx.beginPath(); mctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    mctx.fillStyle=`rgba(255,255,255,${s.a*(s.bright?0.98:0.78)})`; mctx.fill();
+    if(s.bright && s.a>0.65){
+      mctx.strokeStyle=`rgba(255,255,255,${(s.a-0.65)*0.5})`;
+      mctx.lineWidth=0.4;
+      ['h','v'].forEach(d=>{
+        mctx.beginPath();
+        if(d==='h'){mctx.moveTo(s.x-s.r*3,s.y);mctx.lineTo(s.x+s.r*3,s.y);}
+        else{mctx.moveTo(s.x,s.y-s.r*3);mctx.lineTo(s.x,s.y+s.r*3);}
+        mctx.stroke();
+      });
+    }
+  });
+
+  // ── COMETS ──
+  comets.forEach((c,i)=>{
+    const g=mctx.createLinearGradient(c.x,c.y,c.x-c.vx*24,c.y-c.vy*24);
+    g.addColorStop(0,`rgba(255,255,255,${c.life})`);g.addColorStop(1,'rgba(255,255,255,0)');
+    mctx.beginPath();mctx.moveTo(c.x,c.y);mctx.lineTo(c.x-c.vx*24,c.y-c.vy*24);
+    mctx.strokeStyle=g;mctx.lineWidth=1.6;mctx.stroke();
+    c.x+=c.vx;c.y+=c.vy;c.life-=0.011;
+    if(c.life<=0||c.x>W+50||c.y>H+50||c.x<-50) comets.splice(i,1);
+  });
+  if(comets.length<3&&Math.random()<0.004)
+    comets.push({x:Math.random()*W*0.7,y:0,vx:1.8+Math.random()*3,vy:1.5+Math.random()*2.5,life:1});
+
+  // ── ROCKETS & SPACESHIPS ──
+  spawnRocket();
+  rockets.forEach((r,i)=>{
+    r.trail.push({x:r.x,y:r.y});
+    if(r.trail.length>18) r.trail.shift();
+    // Draw trail
+    r.trail.forEach((pt,ti)=>{
+      const a=(ti/r.trail.length)*0.25;
+      mctx.beginPath(); mctx.arc(pt.x,pt.y,1,0,Math.PI*2);
+      mctx.fillStyle=`rgba(255,150,50,${a})`; mctx.fill();
+    });
+    drawRocket(r.x,r.y,r.angle,r.type);
+    r.x+=r.vx; r.y+=r.vy;
+    if(r.x<-80||r.x>W+80||r.y<-80||r.y>H+80) rockets.splice(i,1);
+  });
+
+  requestAnimationFrame(drawMain);
+}
+
+// ═══════════════════════════════════════════════
+// PANEL STARS (background of overlay)
+// ═══════════════════════════════════════════════
+const pCanvas=document.getElementById('panel-stars');
+const pCtx=pCanvas.getContext('2d');
+let pStars=[],pRunning=false,pRaf=null;
+
+function initPanelStars(){
+  pCanvas.width=W; pCanvas.height=H;
+  pStars=[];
+  for(let i=0;i<200;i++) pStars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.4+0.2,a:Math.random(),da:(Math.random()-0.5)*0.01,vy:Math.random()*0.25+0.04});
+}
+function drawPanelStars(){
+  if(!pRunning)return;
+  pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
+  pStars.forEach(s=>{
+    s.a+=s.da; if(s.a<=0||s.a>=1)s.da*=-1;
+    s.y+=s.vy; if(s.y>pCanvas.height){s.y=0;s.x=Math.random()*pCanvas.width;}
+    pCtx.beginPath(); pCtx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    pCtx.fillStyle=`rgba(255,255,255,${s.a*0.88})`; pCtx.fill();
+  });
+  pRaf=requestAnimationFrame(drawPanelStars);
+}
+
+// ═══════════════════════════════════════════════
+// CARD STARS (inside the glass panel card)
+// ═══════════════════════════════════════════════
+const cCanvas=document.getElementById('card-stars');
+const cCtx=cCanvas.getContext('2d');
+let cStars=[],cRunning=false,cRaf=null;
+
+function initCardStars(){
+  const panel=document.getElementById('panel');
+  const rect=panel.getBoundingClientRect();
+  cCanvas.width=rect.width; cCanvas.height=rect.height;
+  cStars=[];
+  for(let i=0;i<120;i++) cStars.push({x:Math.random()*cCanvas.width,y:Math.random()*cCanvas.height,r:Math.random()*1.2+0.2,a:Math.random()*0.6,da:(Math.random()-0.5)*0.008,vy:Math.random()*0.18+0.03});
+}
+function drawCardStars(){
+  if(!cRunning)return;
+  cCtx.clearRect(0,0,cCanvas.width,cCanvas.height);
+  cStars.forEach(s=>{
+    s.a+=s.da; if(s.a<=0||s.a>=0.6)s.da*=-1;
+    s.y+=s.vy; if(s.y>cCanvas.height){s.y=0;s.x=Math.random()*cCanvas.width;}
+    cCtx.beginPath(); cCtx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    cCtx.fillStyle=`rgba(255,255,255,${s.a*0.75})`; cCtx.fill();
+  });
+  cRaf=requestAnimationFrame(drawCardStars);
+}
+
+// ═══════════════════════════════════════════════
+// PANEL OPEN / CLOSE
+// ═══════════════════════════════════════════════
+const panelOverlay=document.getElementById('panel-overlay');
+const panelContent=document.getElementById('panel-content');
+
+function openPanel(id){
+  const tpl=document.getElementById('tpl-'+id);
+  if(!tpl)return;
+  panelContent.innerHTML=tpl.innerHTML;
+  panelOverlay.classList.add('open');
+  if(!pRunning){ initPanelStars(); pRunning=true; drawPanelStars(); }
+  if(!cRunning){ setTimeout(()=>{ initCardStars(); cRunning=true; drawCardStars(); },30); }
+}
+function closePanel(e,force){
+  if(force||(e&&e.target===panelOverlay)){
+    panelOverlay.classList.remove('open');
+    pRunning=false; if(pRaf)cancelAnimationFrame(pRaf);
+    cRunning=false; if(cRaf)cancelAnimationFrame(cRaf);
+    pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
+    cCtx.clearRect(0,0,cCanvas.width,cCanvas.height);
+  }
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape')closePanel(null,true); });
+
+// ═══════════════════════════════════════════════
+// ASTRONAUT
+// ═══════════════════════════════════════════════
+const msgs=['Click a planet, Commander! 🚀','Explore Mars for projects! 🔴','Check Skills planet! 🔮','Open Contact comms! 📡','SR University, Class of 2027! 🎓'];
+let mIdx=0;
+setInterval(()=>{ mIdx=(mIdx+1)%msgs.length; document.getElementById('astro-msg').textContent=msgs[mIdx]; },3800);
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+window.addEventListener('resize',()=>{ resize(); initStars(); });
+resize(); initStars(); drawMain();
+
+// ── NAV BAR ──
+function navOpen(id){
+  openPanel(id);
+  // set active state
+  document.querySelectorAll('.nav-links li button').forEach(b=>b.classList.remove('active'));
+  const btn = document.getElementById('nav-'+id);
+  if(btn) btn.classList.add('active');
+}
+
+// Clear active on close
+const _origCloseNav = closePanel;
+closePanel = function(e, force){
+  if(force||(e&&e.target===panelOverlay)){
+    document.querySelectorAll('.nav-links li button').forEach(b=>b.classList.remove('active'));
+  }
+  _origCloseNav(e, force);
+};
+</script>
+</body>
+</html>
